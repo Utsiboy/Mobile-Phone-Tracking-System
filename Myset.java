@@ -2,6 +2,7 @@ public class Myset<A>
 {
 	public node<MobilePhone> head ;
 	public node<MobilePhone> tail ;
+	public int setsize;
 	public boolean IsEmpty()
 	{
 		return head == null;
@@ -61,7 +62,7 @@ public class Myset<A>
 				{
 					node c = new node();
 					c.setdata(i);
-					head = tail = c;
+					head = tail = c;setsize++;
 					return;
 				}
 				node c = new node();
@@ -69,6 +70,7 @@ public class Myset<A>
 				tail.setnext(c);
 				c.setprev(tail);
 				tail = c;
+				setsize++;
 			}  
 	}
 
@@ -81,7 +83,7 @@ public class Myset<A>
 		}
 		catch(Exception e)
 		{
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 		try
 		{
@@ -93,18 +95,30 @@ public class Myset<A>
 						if((a.getprev()==null)||(a.getnext()==null))
 						{if(a.getprev()==null)
 						{
-							a.getnext().setprev(null);
-							this.head = a.getnext();
+							if(a.getnext()!=null)
+							{a.getnext().setprev(null);
+							this.head = a.getnext();}
+							else 
+							{
+								this.head = null;
+								this.tail = null;
+							}
 						}
 						if(a.getnext()==null)
 						{
-							a.getprev().setnext(null);
-							this.tail = a.getprev();
+							if(a.getprev()!=null)
+							{a.getprev().setnext(null);
+							this.tail = a.getprev();}
+							else 
+								{this.head = null;
+									this.tail = null;}
 						}
+						setsize--;
 						return;}
 
 						a.getprev().setnext(a.getnext());
 						a.getnext().setprev(a.getprev());
+						setsize--;
 						return ;
 					}
 				a = a.getnext();
@@ -113,7 +127,7 @@ public class Myset<A>
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 
 	}
@@ -506,20 +520,42 @@ class Exchange
 		//a.root = this.child(i);
 		return a;
 	}
+	public RoutingMapTree subtree()
+	{
+		RoutingMapTree a = new RoutingMapTree(this);
+		return a;
+	}
 	public MobilePhoneSet ResidentSet()
 	{
 		return residentset;
 	}
 }
-class MobilePhone
+class MobilePhone implements Runnable
 {
 	public int number;
 	public boolean status;
 	public Exchange location;
+	public boolean busy;
+	//public String[] phonequery;
+	public queimp threadfns = new queimp();
+	public boolean random;
+	public RoutingMapTree server;
+	public long timeofstart;
+	public long simtime;
 	public MobilePhone(int i)
 	{
 		number = i;
-	}	
+	}
+	public MobilePhone(int i,RoutingMapTree br,long z,boolean b,long s)
+	{
+		number = i;
+		//threadfns = actions;
+		server = br;
+		busy = false;
+		timeofstart = z;
+		random = b;
+		simtime =s;
+	}
 	public int Number()
 	{
 		return number;
@@ -528,13 +564,29 @@ class MobilePhone
 	{
 		return status;
 	}
-	public void SwitchOn()
+	public void SwitchOn(RoutingMapTree centre,int i2)
 	{
 		status = true;
+		Exchange b = centre.throwNode(i2);
+		this.location = b;
+		
+		Exchange c = b;
+		while(c!=null)
+		{
+			c.residentset.insert(this);
+			c = c.parent;
+		}
+		//newphone.location = this.throwNode(i2);
 	}
-	public void SwitchOff()
+	public void SwitchOff(RoutingMapTree centre)
 	{
 		status = false;
+		Exchange c = this.location;
+		while(c!=null)
+		{
+			c.residentset.delete(this);
+			c = c.parent;
+		}
 	}
 	public Exchange Location()
 	{
@@ -548,6 +600,246 @@ class MobilePhone
 			e.printStackTrace();
 		}
 		return location;
+	}
+	public void movephone(RoutingMapTree centre, int b)
+	{
+		this.SwitchOff(centre);
+		//Exchange locals = centre.throwNode(b);
+		this.SwitchOn(centre,b);
+	}
+	
+	public void run(){
+		go();
+	}
+
+	public synchronized void go()
+	{
+		if(!random)//System.out.println("==" + threadfns.qsize);
+		{while(true)
+		{
+			
+			
+			step beta = threadfns.head;
+			
+				if(beta!=null)
+				{
+					if(((beta.Element)[1]).equals("switchOnMobile"))
+					{
+						int i2 = Integer.parseInt((beta.Element)[3]);
+						this.SwitchOn(server,i2);
+						threadfns.dequeue();
+					}
+					else if(((beta.Element)[1]).equals("switchOffMobile"))
+					{
+						this.SwitchOff(server);
+						threadfns.dequeue();
+					}
+					else if(((beta.Element)[1]).equals("movePhone"))
+					{
+						int i2 = Integer.parseInt((beta.Element)[3]);
+						this.movephone(server,i2);
+						threadfns.dequeue();
+					}
+					else if(((beta.Element)[1]).equals("routeCall"))
+					{
+						//int i2 = Integer.parseInt((beta.Element)[2]);
+						int i3 = Integer.parseInt((beta.Element)[3]);
+						int i4 = Integer.parseInt((beta.Element)[4]);
+						//if((this.number==i2)||(this.number==i3))
+							this.busy=true;
+							MobilePhone mob2 = server.root.residentset.throwphone(i3);
+							mob2.busy =true;
+							try{Thread.currentThread().sleep(i4);}
+							catch ( InterruptedException e){e.printStackTrace();
+								//System.out.println("h");
+							}
+							
+							this.busy=false;
+							mob2.busy=false;
+							//if(this.number==i2)
+						
+						int j = beta.Element.length;
+							for(int t=0;t<j;t++)
+							{
+								System.out.print((beta.Element)[t]+" ");
+							}
+							long endtime= System.currentTimeMillis() - timeofstart;
+							System.out.print("call ended at "+endtime);
+							System.out.println("");
+
+					
+						
+						threadfns.dequeue();
+						//System.out.println(threadfns.qsize);
+						/*int l = sarr.length;
+							for(int t=0;t<l;t++)
+							{
+								System.out.print(sarr[t]+" ");
+							}
+							//System.out.print("call ended ");
+							System.out.println("");*/
+						
+						//this.busy=false;
+						
+
+						
+					}
+				}
+				//beta = beta.next;
+			
+			if(beta==null)
+				{break;}
+			
+		}}
+		else
+		{
+			while((System.currentTimeMillis() - timeofstart)<simtime)
+			{
+				int sleeptime = 4000 +(int)(Math.random()*2000);
+				try{Thread.sleep(sleeptime);}
+				catch ( InterruptedException e){e.printStackTrace();
+								//System.out.println("h");
+							}
+				int fngenerator = (int)(Math.random()*4);
+				long c = (System.currentTimeMillis() - timeofstart);
+			switch (fngenerator)
+			{
+				case 0:
+				{
+					int i2 = 4+(int)(Math.random()*6);
+					
+						//threadfns.dequeue();
+					if(!server.root.residentset.IsMember(this.number))
+					{this.SwitchOn(server,i2);System.out.println("switchon "+this.number+" "+i2);}
+						break;
+				}
+				case 1:
+				{
+					try{if(!server.fullset.IsMember(this.number))
+					throw new Exception();}
+					catch(Exception e)
+		{
+			System.out.println("switchoff ERROR: mobile with identifier "+this.number+" not present");
+		}	
+				if((server.fullset.IsMember(this.number))&&(!this.busy))
+				{if(server.root.residentset.IsMember(this.number))
+					{this.SwitchOff(server);
+					System.out.println("switchoff "+this.number+" ");}}
+						//threadfns.dequeue();
+						break;
+				}
+				case 2:
+				{
+					int i2 = 4+(int)(Math.random()*6);
+					
+					//int i1 = Integer.parseInt(inputs[2]);
+				//int i2 = Integer.parseInt(inputs[3]);
+				
+		try
+		{
+			if((!server.root.residentset.IsMember(this.number))&&(server.fullset.IsMember(this.number)))
+				throw new Exception();
+		}
+		catch(Exception e)
+		{
+			System.out.println("movephone "+this.number+" "+i2+" ERROR: MobilePhone with identifier" + " "+ this.number+" is switched off");
+		}
+						//threadfns.dequeue();
+		
+		try{if(!server.containsNode(i2))
+					throw new Exception();}
+					catch(Exception e)
+		{
+			System.out.println("movephone ERROR: exchange with identifier "+i2+" not present");
+		}
+				if((server.root.residentset.IsMember(this.number))&&(server.containsNode(i2)))
+				{
+					this.movephone(server,i2);
+					System.out.println("movephone "+this.number+" "+i2);}
+						break;
+				}
+				case 3:
+				{
+					int i3 = server.throwrandomphone().number;
+					int i4 = 4000+(int)(Math.random()*1000);
+					//int i1 = Integer.parseInt(inputs[2]);
+				//int i2 = Integer.parseInt(inputs[3]);
+				//System.out.println("h");
+					if((System.currentTimeMillis() - timeofstart)<simtime-i4)
+					{try
+		{
+			if((!server.root.residentset.IsMember(this.number))&&(server.fullset.IsMember(this.number)))
+				throw new Exception();
+		}
+		catch(Exception e)
+		{
+			System.out.println("routeCall "+this.number+" "+i3+" ERROR: MobilePhone with identifier" + " "+ this.number+" is switched off");
+		}
+		//this.busy=true;
+				
+		/*try
+		{
+			if (!server.fullset.IsMember(i3))
+				throw new Exception();
+		}
+		catch(Exception e)
+		{
+			System.out.println("routeCall ERROR: MobilePhone with identifier" + " "+ i3+" was not found");
+		}*/
+		try
+		{
+			if((!server.root.residentset.IsMember(i3))&&(server.fullset.IsMember(i3)))
+				{throw new Exception();}
+		}
+		catch(Exception e)
+		{
+			System.out.println("routeCall "+this.number+" "+i3+" ERROR: MobilePhone with identifier" + " "+ i3+" is switched off");
+		}
+		if((server.root.residentset.IsMember(i3))&&(server.root.residentset.IsMember(this.number)))
+		{
+			//MobilePhone mob1 = server.root.residentset.throwphone(i1);
+			MobilePhone mobnext = server.root.residentset.throwphone(i3);
+			
+		try
+			{
+				if((mobnext.busy)||(i3==this.number))
+					{busy = false;throw new Exception();}
+			}
+			catch(Exception e)
+		{
+			System.out.println("routeCall "+this.number+" "+i3+" ERROR: MobilePhone with identifier" + " "+ i3+" is busy");
+		}
+					if((!mobnext.busy)&&(mobnext.number!=this.number))
+					{long strttime= System.currentTimeMillis() - timeofstart;
+						System.out.println("routeCall "+this.number+" "+i3+" "+i4+" call started at "+strttime);
+					
+							//MobilePhone mob2 = server.root.residentset.throwphone(i3);
+						this.busy = true;
+							mobnext.busy =true;
+							try{Thread.currentThread().sleep(i4);}
+							catch ( InterruptedException e){e.printStackTrace();
+								//System.out.println("h");
+							}
+							
+							this.busy=false;
+							mobnext.busy=false;
+							//if(this.number==i2)
+						
+						/*int j = beta.Element.length;
+							for(int t=0;t<j;t++)
+							{
+								System.out.print((beta.Element)[t]+" ");
+							}*/
+							long endtime= System.currentTimeMillis() - timeofstart;
+							System.out.print("routeCall "+this.number+" "+i3+" "+i4+" call ended at "+endtime);
+							System.out.println("");}}}
+
+					
+						
+						//threadfns.dequeue();
+				}
+			}}
+		}
 	}
 }
 class MobilePhoneSet
@@ -596,3 +888,89 @@ class MobilePhoneSet
 		return e;
 	}
 }
+class queimp
+{
+	
+	public step head;
+	public step tail;
+	public int qsize;
+	public step gethead()
+	{
+		return head;
+	}
+	public void sethead(step n)
+	{head=n;}
+	public step gettail()
+	{return tail;}
+	public void settail(step n)
+	{tail=n;}
+	public void enqueue(String[] b)
+	{
+		if (head==null)
+		{
+			step newnode = new step(b);
+			this.sethead(newnode);
+			this.settail(newnode);
+
+		}
+		else if(head.getnext()==null)
+		{
+			step newnode = new step(b);
+			head.setnext(newnode);
+			this.settail(newnode);
+		}
+		else 
+		{
+			step newnode = new step(b);
+			tail.setnext(newnode);
+			this.settail(newnode);
+		}qsize++;
+
+	}
+	public String[] dequeue()
+	{
+		if (head==null) 
+		{
+			throw new NullPointerException();
+		}
+		else if (head.getnext()==null)
+		{
+			String[] temp = head.getElement();
+			head = null;
+			tail = null;qsize--;
+			return temp;
+		}
+		 
+		else
+		{
+			String[] temp = head.getElement();
+			head = head.getnext();qsize--;
+			return temp;
+		}
+
+	}
+	
+}
+class step
+	{
+		public String[] Element;
+		public step next;
+		public step(String[] e,step b)
+		{
+			Element = e;
+			next = b;
+		}
+		public step(String[] e)
+		{
+			Element = e;
+			next = null;
+		}
+		public String[] getElement()
+		{return Element;}
+		public step getnext()
+		{return next;}
+		public void setnext(step newnext)
+		{
+			next = newnext;
+		}
+	}
